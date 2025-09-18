@@ -5,7 +5,7 @@ project(GLViewWin32Project LANGUAGES C CXX)
 
 
 # Add source files
-set(SOURCES src/oevTest.cpp)
+set(SOURCES src/Main.cpp src/RenderingTester.cpp)
 
 # Add Vulkan include directory (assuming "vulkan/" is at the root)
 include_directories(${CMAKE_SOURCE_DIR})
