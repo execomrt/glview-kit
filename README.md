@@ -1,249 +1,141 @@
-﻿# RenderingTester Library v2.0
+# GLVIEW Kit
 
-A modern, clean C++ library for testing OpenGL and Vulkan rendering performance. This is a complete rewrite of the original OpenGL Extensions Viewer test code, designed to be more maintainable, easier to use, and better structured.
-
-## Features
-
-- **Multiple Rendering APIs**: Support for OpenGL 2.0-4.6 and Vulkan 1.0-1.2
-- **Flexible Configuration**: Easy-to-use configuration system for all test parameters
-- **Multiple Test Scenes**: Various complexity levels from simple cubes to complex character models
-- **Quality Options**: Configurable multisampling, anisotropic filtering, fog, transparency
-- **Progress Tracking**: Callback system for monitoring test progress
-- **Modern C++**: Clean C++17 code with RAII, smart pointers, and proper error handling
-- **Easy Integration**: Simple header/implementation split for easy project integration
+Windows C++ wrapper and sample for the OpenGL Extensions Viewer rendering runtime.
+The wrapper loads `infogl.dll` dynamically; no import library, Vulkan SDK, private
+RenderCore checkout, or network access is required to build this kit.
 
 ## Requirements
 
-- Windows 10 or later
-- Visual Studio 2019 or later (with C++17 support)
-- OpenGL-capable graphics card
-- `infogl.dll` and `GLVIEW.RMX` files (from original OpenGL Extensions Viewer)
+- Windows 10 or later, Visual Studio 2022 with Desktop development with C++.
+- CMake 3.21 or later; the targets use C++20.
+- A matching x64 GLVIEW runtime: `infogl.dll`, `GLVIEW.RMX`, and its companion files.
+- A GPU/driver supporting the requested API. Windows Vulkan tests use the
+  RenderCore backend and require Vulkan 1.3, including the legacy Vulkan 1.0 ID.
 
-## Project Structure
+This refresh uses GLVIEW SDK commit `c533cd1b52c4e4b8d7ab2703044b99945558b8c0`.
+Runtime binaries are supplied separately and are not committed here. Keep the DLL
+and resource archive from the same runtime build; an older archive may lack shaders.
 
+## Build
+
+From the kit root:
+
+```powershell
+cmake --preset vs2022-x64
+cmake --build --preset debug
+cmake --build --preset release
 ```
-RenderingTester/
-├── RenderingTester.h      # Main header file
-├── RenderingTester.cpp    # Implementation
-├── Examples.cpp           # Usage examples
-├── CMakeLists.txt         # Build configuration
-├── README.md             # This file
-└── include/
-    └── oevSDK.h          # Original SDK header (required)
+
+`generate_vs.bat` runs the configure preset and forwards additional arguments.
+The existing `GLViewWin32Project` executable target is retained.
+
+To stage a runtime beside the executable, configure with:
+
+```powershell
+cmake --preset vs2022-x64 -DGLVIEW_RUNTIME_DIR=C:/Home/code/GLVIEW/bin
+cmake --build --preset debug
 ```
 
-## Quick Start
+The runtime copy target runs on each sample build, including when the executable
+is already up to date. Required files are checked at configure time; known optional
+companions and databases are copied when present. Reconfigure after adding a new
+companion file. Without this setting, compilation still works; supply runtime files
+beside the executable before running it.
 
-### 1. Basic Usage
+For a private local preset, create ignored `CMakeUserPresets.json`:
+
+```json
+{
+  "version": 3,
+  "configurePresets": [{
+    "name": "local",
+    "inherits": "vs2022-x64",
+    "cacheVariables": { "GLVIEW_RUNTIME_DIR": "C:/Home/code/GLVIEW/bin" }
+  }],
+  "buildPresets": [{
+    "name": "local-debug",
+    "configurePreset": "local",
+    "configuration": "Debug"
+  }]
+}
+```
+
+Use `cmake --preset local` and `cmake --build --preset local-debug`.
+Machine paths belong in user presets, not shared presets.
+
+## Run
+
+```powershell
+Push-Location build/vs2022-x64/Debug
+.\GLViewWin32Project.exe --opengl --no-pause
+.\GLViewWin32Project.exe --vulkan13 --no-pause
+Pop-Location
+```
+
+The sample opens a 640x480 window for five seconds per test. With no API selection
+it runs OpenGL 3.2 then Vulkan 1.3. Interactive runs wait for Enter; `--no-pause`
+writes `glviewkit.log` and `glviewkit-error.log` in the working directory and exits.
+Exit codes: 0 success, 1 initialization/test failure, 2 invalid arguments.
+PowerShell callers automating a GUI executable should use `Start-Process -Wait
+-PassThru` to wait for completion and read `ExitCode`.
+
+The sample resolves the DLL and default archive beside its executable. Override
+the archive with `--rmx path`. Run from the output directory so companion databases
+and logs also resolve consistently. GPU tests require a desktop/display and are
+not headless unit tests. The larger internal recording showcase is not included.
+
+## Integrate
+
+```cmake
+add_subdirectory(path/to/glview-kit)
+target_link_libraries(my_app PRIVATE GLViewKit::RenderingTester)
+```
 
 ```cpp
 #include "RenderingTester.h"
 
-int main() {
-    RenderTest::RenderingTester tester;
-    
-    if (!tester.Initialize()) {
-        std::cout << "Failed to initialize: " << tester.GetLastError() << std::endl;
-        return -1;
-    }
-    
-    // Create a simple test configuration
-    auto config = RenderTest::RenderingTester::CreateDefaultConfig();
-    config.renderer = RenderTest::RendererType::OpenGL_4_6;
-    config.scene = RenderTest::SceneType::SingleCube;
-    
-    // Run the test
-    auto result = tester.RunSingleTest(config);
-    
-    if (result.passed) {
-        std::cout << "Test passed! FPS: " << result.averageFPS << std::endl;
-    } else {
-        std::cout << "Test failed: " << result.errorMessage << std::endl;
-    }
-    
-    return 0;
-}
-```
-
-### 2. Multiple Tests with Progress Tracking
-
-```cpp
-#include "RenderingTester.h"
-#include <vector>
-
-int main() {
-    RenderTest::RenderingTester tester;
-    tester.Initialize();
-    
-    // Create multiple test configurations
-    std::vector<RenderTest::TestConfig> configs = {
-        RenderTest::RenderingTester::CreateDefaultConfig(),
-        RenderTest::RenderingTester::CreatePerformanceConfig(),
-        RenderTest::RenderingTester::CreateQualityConfig()
-    };
-    
-    // Progress callback
-    auto progress = [](int current, int total, const RenderTest::TestResult& result) {
-        std::cout << "Progress: " << current << "/" << total;
-        if (result.passed) {
-            std::cout << " - FPS: " << result.averageFPS;
-        }
-        std::cout << std::endl;
-    };
-    
-    // Run all tests
-    auto results = tester.RunMultipleTests(configs, progress);
-    
-    // Process results
-    for (const auto& result : results) {
-        // Handle each result...
-    }
-    
-    return 0;
-}
-```
-
-## Configuration Options
-
-### Renderer Types
-- `RendererType::GDI` - Software GDI renderer
-- `RendererType::OpenGL_2_0` through `RendererType::OpenGL_4_6` - OpenGL versions
-- `RendererType::Vulkan_1_0` through `RendererType::Vulkan_1_2` - Vulkan versions
-
-### Scene Types
-- `SceneType::SingleCube` - Simple single cube (fastest)
-- `SceneType::ManyCubes` - Multiple cubes for stress testing
-- `SceneType::Character` - Single character model
-- `SceneType::ManyCharacters` - Multiple character models
-- `SceneType::Raytracing` - Ray tracing test scene
-
-### Quality Settings
-- **Multisampling**: 0 (disabled), 2, 4, 8, 16 samples
-- **Anisotropic Filtering**: 0 (disabled), 1-16x
-- **Effects**: Fog, transparency, user clip planes
-- **Framebuffer Formats**: Linear RGB, sRGB, HDR
-
-## Example Configurations
-
-### Performance Testing
-```cpp
-auto config = RenderTest::RenderingTester::CreatePerformanceConfig();
-config.renderer = RenderTest::RendererType::OpenGL_4_6;
-config.scene = RenderTest::SceneType::ManyCubes;
-config.multisampleCount = 0;  // Disable MSAA for max performance
-config.testDurationSeconds = 30;
-```
-
-### Quality Testing
-```cpp
-auto config = RenderTest::RenderingTester::CreateQualityConfig();
-config.multisampleCount = 8;     // High MSAA
-config.maxAnisotropy = 16;       // Max anisotropic filtering
-config.fog = true;
-config.transparency = true;
-config.fbFormat = RenderTest::FramebufferFormat::HDR;
-```
-
-### API Comparison
-```cpp
-// OpenGL test
-auto glConfig = RenderTest::RenderingTester::CreateDefaultConfig();
-glConfig.renderer = RenderTest::RendererType::OpenGL_4_6;
-
-// Vulkan test  
-auto vkConfig = glConfig;
-vkConfig.renderer = RenderTest::RendererType::Vulkan_1_2;
-
-std::vector<RenderTest::TestConfig> configs = {glConfig, vkConfig};
-auto results = tester.RunMultipleTests(configs);
-```
-
-## Building
-
-### Using CMake (Recommended)
-
-```bash
-mkdir build
-cd build
-cmake ..
-cmake --build . --config Release
-```
-
-### Manual Build
-
-1. Add `RenderingTester.h` and `RenderingTester.cpp` to your project
-2. Link against: `opengl32.lib`, `Shcore.lib`, `Comctl32.lib`
-3. Ensure `infogl.dll` and `GLVIEW.RMX` are in your output directory
-4. Set C++17 standard in your compiler settings
-
-## Error Handling
-
-The library uses several mechanisms for error handling:
-
-```cpp
-RenderTest::RenderingTester tester;
-
-// Check initialization
+RenderTest::RenderingTester tester("C:/runtime", "C:/runtime/GLVIEW.RMX");
 if (!tester.Initialize()) {
-    std::cout << "Error: " << tester.GetLastError() << std::endl;
+    // Inspect tester.GetLastError().
 }
-
-// Check test results
+auto config = RenderTest::RenderingTester::CreateDefaultConfig();
+config.renderer = RenderTest::RendererType::OpenGL_4_6;
+config.fullscreen = false;
+config.testDurationSeconds = 5;
 auto result = tester.RunSingleTest(config);
-if (!result.passed) {
-    std::cout << "Test failed: " << result.errorMessage << std::endl;
-}
-
-// Exception handling for critical errors
-try {
-    auto results = tester.RunMultipleTests(configs);
-} catch (const RenderTest::RenderTestException& e) {
-    std::cout << "Critical error: " << e.what() << std::endl;
-}
 ```
 
-## Migration from Original Code
+The constructor's first argument is a directory containing `infogl.dll`; the second
+is the archive filename. Empty arguments retain the wrapper's DLL-search and
+working-directory defaults. The CMake library target supplies include directories,
+C++20, and the Windows libraries `opengl32`, `Shcore`, and `Comctl32`.
+For manual integration, compile `src/RenderingTester.cpp`, add `src` and `include`
+to include paths, and link those system libraries.
 
-If you're migrating from the original `oevTest.cpp`:
+`TestConfig` covers renderer/legacy version, scenes, fullscreen mode, framebuffer,
+MSAA, anisotropy, fog, transparency, clip plane, and test duration. Availability
+depends on the runtime and driver; enum presence does not guarantee support.
+`RunMultipleTests` accepts configurations and an optional progress callback.
+Renderer IDs cross the DLL ABI: Vulkan 1.3 is 17; 16 remains reserved for Metal.
 
-| Original | New Library |
-|----------|-------------|
-| `run_rendering_test()` | `tester.RunSingleTest(config)` |
-| Hardcoded XML strings | `TestConfig` structure |
-| Manual option bitflags | Boolean configuration options |
-| Direct DLL calls | Wrapped in `RenderingTester` class |
-| Global variables | RAII-managed resources |
+## Refresh the SDK
 
-## Dependencies
+```powershell
+./scripts/Sync-Sdk.ps1 -GLViewRoot C:/Home/code/GLVIEW
+```
 
-- **Required at runtime**: `infogl.dll`, `GLVIEW.RMX`
-- **System libraries**: OpenGL, Windows API
-- **C++ Standard**: C++17 or later
+This explicitly copies `SDK/RenderingTester.h`, `SDK/RenderingTester.cpp`, and
+`SDK/include/oevSDK.h`, adapting the implementation's SDK include path. It does not
+copy the internal sample or runtime binaries. Review the diff, update the source
+commit recorded above, build Debug/Release, and smoke-test both APIs with a matching
+runtime before releasing. Preserve the public header's ABI values.
 
-## Examples
+## Layout and license
 
-See `Examples.cpp` for comprehensive usage examples including:
-- Basic single tests
-- OpenGL version comparisons  
-- Quality impact analysis
-- Vulkan vs OpenGL benchmarks
-- Resolution scaling tests
-- Full benchmark suites
+- `src/RenderingTester.*`: C++ wrapper.
+- `src/Main.cpp`: standalone sample and command-line options.
+- `include/oevSDK.h`: public C API and renderer IDs.
+- `CMakePresets.json`: shared Visual Studio x64 configure/build presets.
+- `scripts/Sync-Sdk.ps1`: repeatable refresh from the GLVIEW checkout.
 
-## License
-
-Copyright (C) Realtech VR 2000-2023  
-Licensed under the same terms as the original OpenGL Extensions Viewer.
-
-## Changes from Original
-
-- ✅ **Clean C++ API**: Modern C++17 with proper RAII
-- ✅ **Type Safety**: Enums instead of magic numbers
-- ✅ **Error Handling**: Exceptions and error codes
-- ✅ **Documentation**: Comprehensive comments and examples
-- ✅ **Flexibility**: Easy configuration without XML strings
-- ✅ **Progress Tracking**: Callback system for long-running tests
-- ✅ **Memory Management**: Smart pointers, no memory leaks
-- ✅ **Maintainability**: Separated concerns, testable code
-
-The new library maintains full compatibility with the original `infogl.dll` while providing a much cleaner and easier-to-use interface.
+See `LICENSE` and the copyright/permission notices in the SDK sources.

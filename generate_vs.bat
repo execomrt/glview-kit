@@ -1,7 +1,6 @@
 @echo off
-mkdir build
-cd build
-cmake -G "Visual Studio 17 2022" ..
-cd ..
-echo Visual Studio project generated in build/
-pause
+pushd "%~dp0"
+cmake --preset vs2022-x64 %*
+set "result=%errorlevel%"
+popd
+exit /b %result%

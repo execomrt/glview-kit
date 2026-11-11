@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file RenderingTester.h
  * @brief OpenGL/Vulkan Rendering Performance Tester
  *
@@ -24,11 +24,25 @@ typedef HINSTANCE__* HINSTANCE;
 namespace RenderTest {
 
     /**
+    * @brief Supported rendering APIs
+    */
+    enum class LegacyTest {
+        OpenGL_1_1,    // OpenGL 1.1
+        OpenGL_1_2,    // OpenGL 1.2
+        OpenGL_1_3,    // OpenGL 1.3
+        OpenGL_1_4,    // OpenGL 1.4
+        OpenGL_1_5,    // OpenGL 1.5
+        OpenGL_2_0,    // OpenGL 2.0
+        OpenGL_2_1,    // OpenGL 2.1
+
+    };
+    /**
      * @brief Supported rendering APIs
      */
     enum class RendererType {
         GDI,           // Software GDI renderer
-        OpenGL_2_0,    // OpenGL 2.0
+
+        OpenGL_2_X,    // OpenGL 2.0
         OpenGL_3_0,    // OpenGL 3.0
         OpenGL_3_1,    // OpenGL 3.1
         OpenGL_3_2,    // OpenGL 3.2
@@ -40,9 +54,10 @@ namespace RenderTest {
         OpenGL_4_4,    // OpenGL 4.4
         OpenGL_4_5,    // OpenGL 4.5
         OpenGL_4_6,    // OpenGL 4.6
-        Vulkan_1_0,    // Vulkan 1.0
+        Vulkan_1_0,    // Compatibility ID; Windows uses RenderCore (requires Vulkan 1.3)
         Vulkan_1_1,    // Vulkan 1.1
-        Vulkan_1_2     // Vulkan 1.2
+        Vulkan_1_2,    // Vulkan 1.2
+        Vulkan_1_3 = 17 // RenderCore Vulkan 1.3; 16 is reserved for Metal in the DLL ABI
     };
 
     /**
@@ -75,14 +90,25 @@ namespace RenderTest {
     };
 
     /**
+     * @brief Fullscreen behavior
+     */
+    enum class FullscreenMode {
+        Borderless,        // Borderless fullscreen window at the current desktop mode
+        ExclusiveExact,    // Exclusive fullscreen only when the requested display mode exists
+        ExclusiveClosest   // Exclusive fullscreen using the closest available display mode
+    };
+
+    /**
      * @brief Test configuration structure
      */
     struct TestConfig {
         // Rendering settings
         RendererType renderer = RendererType::OpenGL_4_6;
+        LegacyTest legacyTest = LegacyTest::OpenGL_2_1;
 
         // Display settings
         bool fullscreen = false;
+        FullscreenMode fullscreenMode = FullscreenMode::Borderless;
         int width = 1920;
         int height = 1080;
         bool vsync = false;
@@ -101,6 +127,7 @@ namespace RenderTest {
 
         // Test settings
         SceneType scene = SceneType::SingleCube;
+
         int testDurationSeconds = 10;
         bool enableDebugOutput = false;
 
@@ -226,6 +253,7 @@ namespace RenderTest {
         std::string BuildXMLConfiguration(const TestConfig& config);
         std::string CreateXMLElement(const std::string& name, const std::string& value);
         std::string GetTestVersionString(RendererType renderer);
+        std::string GetLegacyTestString(LegacyTest renderer);
         std::string FramebufferFormatToString(FramebufferFormat format);
         std::string FramebufferTypeToString(FramebufferType type);
     };
@@ -248,9 +276,10 @@ namespace RenderTest {
          * @brief Find available display modes for given resolution
          * @param width Desired width
          * @param height Desired height
+         * @param allowClosest Use closest available mode if exact size is unavailable
          * @return Display mode index, -1 if not found
          */
-        int FindDisplayMode(int width, int height);
+        int FindDisplayMode(int width, int height, bool allowClosest = false);
 
         /**
          * @brief Setup DPI awareness for modern Windows versions

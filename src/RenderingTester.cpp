@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file RenderingTester.cpp
  * @brief Implementation of the OpenGL/Vulkan Rendering Performance Tester
  * @version 7.2 (2025-09-18) https://www.realtech-vr.com/glview
@@ -13,12 +13,14 @@
 #include <iostream>
 #include <stdexcept>
 #include <iomanip>
+#include <filesystem>
 
  // Include the original SDK header
-#include "include/oevSDK.h"
+#include "oevSDK.h"
 
 
 namespace RenderTest {
+    static_assert(static_cast<int>(RendererType::Vulkan_1_3) == RENDERER_VK1_3);
 
 	/**
 	 * @brief Internal logging utility
@@ -110,7 +112,10 @@ namespace RenderTest {
 			return false;
 		}
 
-		// Initialize the resource package
+		// Resolve once and report the exact archive given to the DLL.
+        m_resourcePath = std::filesystem::absolute(m_resourcePath).string();
+        Logger::Info("Resource package: %s", m_resourcePath.c_str());
+        // Initialize the resource package
 		if (m_pImpl->funcInitWad(m_resourcePath.c_str()) < 0) {
 			SetLastError("Failed to initialize resource package: " + m_resourcePath);
 			return false;
@@ -245,9 +250,20 @@ namespace RenderTest {
 	std::string RenderingTester::BuildXMLConfiguration(const TestConfig& config) {
 		std::ostringstream xml;
 
+		int displayMode = -1;
+		if (config.fullscreen && config.fullscreenMode != FullscreenMode::Borderless) {
+			displayMode = Utils::FindDisplayMode(
+				config.width,
+				config.height,
+				config.fullscreenMode == FullscreenMode::ExclusiveClosest);
+		}
+
 		// Build options bitmask
 		int options = 0;
-		if (config.fullscreen) options |= (WGLDIAG_OPTION_FS | WGLDIAG_OPTIONS_FS_EX);
+		if (config.fullscreen) options |= WGLDIAG_OPTION_FS;
+		if (config.fullscreen && config.fullscreenMode != FullscreenMode::Borderless && displayMode >= 0) {
+			options |= WGLDIAG_OPTIONS_FS_EX;
+		}
 		if (config.enableDebugOutput) options |= WGLDIAG_OPTION_DEBUG;
 		if (config.vsync) options |= WGLDIAG_OPTION_VSYNC;
 		if (config.fog) options |= WGLDIAG_OPTION_FOG;
@@ -259,7 +275,7 @@ namespace RenderTest {
 		std::string sceneValue = std::to_string(static_cast<int>(config.scene));
 		std::string fbFormatStr = FramebufferFormatToString(config.fbFormat);
 		std::string fbTypeStr = FramebufferTypeToString(config.fbType);
-		std::string testVersion = GetTestVersionString(config.renderer);
+		std::string testVersion = config.renderer == RendererType::OpenGL_2_X ? GetLegacyTestString(config.legacyTest) : GetTestVersionString(config.renderer);
 
 		// Build XML elements
 		xml << CreateXMLElement("option", std::to_string(options));
@@ -267,7 +283,7 @@ namespace RenderTest {
 		xml << CreateXMLElement("multisample", std::to_string(config.multisampleCount));
 		xml << CreateXMLElement("anisotropy", std::to_string(config.maxAnisotropy));
 		xml << CreateXMLElement("texturelod", std::to_string(config.textureLOD));
-		xml << CreateXMLElement("displaymode", std::to_string(Utils::FindDisplayMode(config.width, config.height)));
+		xml << CreateXMLElement("displaymode", std::to_string(displayMode));
 		xml << CreateXMLElement("renderer", std::to_string(rendererValue));
 		xml << CreateXMLElement("pixelformat", std::to_string(config.pixelFormat));
 		xml << CreateXMLElement("test", testVersion);
@@ -285,10 +301,27 @@ namespace RenderTest {
 		return "<" + name + ">" + value + "</" + name + ">\n";
 	}
 
+
+	std::string RenderingTester::GetLegacyTestString(LegacyTest renderer) {
+		switch (renderer) {
+
+		case LegacyTest::OpenGL_1_1: return "1.1";
+		case LegacyTest::OpenGL_1_2: return "1.2";
+		case LegacyTest::OpenGL_1_3: return "1.3";
+		case LegacyTest::OpenGL_1_4: return "1.4";
+		case LegacyTest::OpenGL_1_5: return "1.5";
+		case LegacyTest::OpenGL_2_0: return "2.0";
+		case LegacyTest::OpenGL_2_1: return "2.1";
+
+		default: return "2.0";
+		}
+	}
+
 	std::string RenderingTester::GetTestVersionString(RendererType renderer) {
 		switch (renderer) {
 		case RendererType::GDI:
-		case RendererType::OpenGL_2_0: return "2.0";
+
+		case RendererType::OpenGL_2_X: return "2.0";
 		case RendererType::OpenGL_3_0: return "3.0";
 		case RendererType::OpenGL_3_1: return "3.1";
 		case RendererType::OpenGL_3_2: return "3.2";
@@ -303,6 +336,7 @@ namespace RenderTest {
 		case RendererType::Vulkan_1_0:
 		case RendererType::Vulkan_1_1:
 		case RendererType::Vulkan_1_2: return "1.0";
+		case RendererType::Vulkan_1_3: return "1.3";
 		default: return "4.6";
 		}
 	}
@@ -330,7 +364,7 @@ namespace RenderTest {
 		std::string RendererTypeToString(RendererType type) {
 			switch (type) {
 			case RendererType::GDI: return "GDI";
-			case RendererType::OpenGL_2_0: return "OpenGL 2.0";
+			case RendererType::OpenGL_2_X: return "OpenGL 2.0";
 			case RendererType::OpenGL_3_0: return "OpenGL 3.0";
 			case RendererType::OpenGL_3_1: return "OpenGL 3.1";
 			case RendererType::OpenGL_3_2: return "OpenGL 3.2";
@@ -342,9 +376,10 @@ namespace RenderTest {
 			case RendererType::OpenGL_4_4: return "OpenGL 4.4";
 			case RendererType::OpenGL_4_5: return "OpenGL 4.5";
 			case RendererType::OpenGL_4_6: return "OpenGL 4.6";
-			case RendererType::Vulkan_1_0: return "Vulkan 1.0";
-			case RendererType::Vulkan_1_1: return "Vulkan 1.1";
-			case RendererType::Vulkan_1_2: return "Vulkan 1.2";
+			case RendererType::Vulkan_1_0: return "Vulkan (RenderCore; legacy 1.0 request)";
+			case RendererType::Vulkan_1_1: return "Vulkan (RenderCore; legacy 1.1 request)";
+			case RendererType::Vulkan_1_2: return "Vulkan (RenderCore; legacy 1.2 request)";
+			case RendererType::Vulkan_1_3: return "Vulkan 1.3 (RenderCore)";
 			default: return "Unknown";
 			}
 		}
@@ -360,20 +395,45 @@ namespace RenderTest {
 			}
 		}
 
-		int FindDisplayMode(int width, int height) {
+		int FindDisplayMode(int width, int height, bool allowClosest) {
 			int modeIndex = 0;
+			int bestModeIndex = -1;
+			DWORD bestRefreshRate = 0;
+			DWORD bestBitsPerPixel = 0;
+			long long bestScore = 0;
 			DEVMODE displayMode = { 0 };
 			displayMode.dmSize = sizeof(DEVMODE);
 
 			while (EnumDisplaySettings(nullptr, modeIndex, &displayMode)) {
-				if (width == static_cast<int>(displayMode.dmPelsWidth) &&
-					height == static_cast<int>(displayMode.dmPelsHeight)) {
-					return modeIndex;
+				const int modeWidth = static_cast<int>(displayMode.dmPelsWidth);
+				const int modeHeight = static_cast<int>(displayMode.dmPelsHeight);
+				const bool exactMatch = width == modeWidth && height == modeHeight;
+				if (exactMatch || allowClosest) {
+					const DWORD refreshRate = displayMode.dmDisplayFrequency > 1 ? displayMode.dmDisplayFrequency : 0;
+					const long long widthDelta = static_cast<long long>(modeWidth) - width;
+					const long long heightDelta = static_cast<long long>(modeHeight) - height;
+					const long long requestedPixels = static_cast<long long>(width) * height;
+					const long long modePixels = static_cast<long long>(modeWidth) * modeHeight;
+					const long long pixelDelta = modePixels > requestedPixels
+						? modePixels - requestedPixels
+						: requestedPixels - modePixels;
+					const long long score = exactMatch
+						? 0
+						: pixelDelta * 16 + widthDelta * widthDelta + heightDelta * heightDelta;
+					const bool betterRefreshOrDepth =
+						refreshRate > bestRefreshRate ||
+						(refreshRate == bestRefreshRate && displayMode.dmBitsPerPel > bestBitsPerPixel);
+					if (bestModeIndex < 0 || score < bestScore || (score == bestScore && betterRefreshOrDepth)) {
+						bestModeIndex = modeIndex;
+						bestScore = score;
+						bestRefreshRate = refreshRate;
+						bestBitsPerPixel = displayMode.dmBitsPerPel;
+					}
 				}
 				modeIndex++;
 			}
 
-			return -1; // Mode not found
+			return bestModeIndex;
 		}
 
 		void SetupDPIAwareness() {

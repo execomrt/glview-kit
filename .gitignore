@@ -1,1 +1,7 @@
-/build
+/build/
+/CMakeUserPresets.json
+*.dll
+*.pdb
+*.exe
+*.log
+/GLVIEW.RMX

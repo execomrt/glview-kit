@@ -2,7 +2,7 @@
 ; *
 ; * 	File		:	oevSDK.h
 ; *
-; * 	Description :	GLView SDK
+; * 	Description :	GLview SDK
 ; *
 ; * 	Copyright (C) Realtech VR 2000 - 2020 - http://www.realtech-vr.com/glview
 ; *
@@ -17,30 +17,25 @@
 ; ***************************************************************************/
 // OpenGL Extensions Viewer headers.
 #pragma once
-
 #ifdef _WIN32
 #include <Windows.h>
-
 #ifdef INFOGL_EXPORTS
 #define _OEV_EXPORTFUNC __declspec(dllexport)
 #else
 #define _OEV_EXPORTFUNC __declspec(dllimport)
 #endif
 #else
-
-#define _OEV_EXPORTFUNC 
-
+#define _OEV_EXPORTFUNC
 #endif
-
 struct gvCpuid
 {
-	char* Name;
-	char* CodeName;
-	char* Package;
-	char* VendorName;
-	char* Specification;
-	char* Technology;
-	char* Instructions;
+	const char* Name;
+	const char* CodeName;
+	const char* Package;
+	const char* VendorName;
+	const char* Specification;
+	const char* Technology;
+	const char* Instructions;
 	int MaxTDP;
 	int Stepping;
 	int Revision;
@@ -49,24 +44,11 @@ struct gvCpuid
 	int ExtModel;
 	int ExtFamily;
 	int Signature;
-	int FreqGhz;
 	int FreqMhz;
-
 	int RAMb;
 	int Cores;
 	int Threads;
 };
-
-struct gvRenderingTestResult
-{
-	int structSize;
-	int index;
-	int duration;
-	float fps;
-	const char* result;
-	struct gvRenderingTestResult* next;
-};
-
 
 // Renderer list
 enum ovRenderer
@@ -87,15 +69,16 @@ enum ovRenderer
 	RENDERER_VK1_0,
 	RENDERER_VK1_1,
 	RENDERER_VK1_2,
+    RENDERER_METAL,
+	RENDERER_VK1_3,
 	MAX_RENDERER
 };
- 
+
 // FB
 #define WGLDIAG_FB_LINEAR 0
 #define WGLDIAG_FB_sRGB 1
 #define WGLDIAG_FB_HDR 2
-
-// Options 
+// Options
 #define WGLDIAG_OPTION_ANISO 1
 #define WGLDIAG_OPTION_MULTISAMPLE (1UL<<1)
 #define WGLDIAG_OPTION_PBUFFER (1UL<<2)
@@ -116,41 +99,71 @@ enum ovRenderer
 #define WGLDIAG_OPTIONS_FS_EX (1UL << 19)
 #define WGLDIAG_OPTION_DEBUG (1UL << 20)
 
+struct gvRenderingTestResult
+{
+    int structSize;
+    int index;
+    int duration;
+    float fps;
+
+    const char* result;
+    struct gvRenderingTestResult* next;
+};
+#define GV_MAX_TEST_ARGS 32
+struct gvRenderingTestArgs
+{
+	int version;
+    float maxAnisotropy;
+    float textureLod;
+    int displayModeId;
+
+    int duration;
+    int durationMs;
+    int fbFormat;
+    int height;
+
+    int myFlags;
+    int numResults;
+    int pixelformat;
+    int renderer;
+
+    int sampleCount;
+    int scene;
+    int width;
+    int pad;
+
+    struct gvRenderingTestResult myResults[GV_MAX_TEST_ARGS];
+};
 
 typedef int (*PFNOEVREADCPUID)(struct gvCpuid*);
 typedef int (*PFNOEVINITWAD)(const char*);
 typedef struct gvRenderingTestResult* (*PNFNOEVRUNRENDERINGTESTS)(const char*);
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 	_OEV_EXPORTFUNC const char* gvReportGetLogFile(void);
-
+    _OEV_EXPORTFUNC const char* oevGetVulkanRenderingTests(int adapter);
 	// Get version from renderer
 	_OEV_EXPORTFUNC const char* oevDiagGetVersion(enum ovRenderer renderer);
-
 	// Get renderer name
 	_OEV_EXPORTFUNC const char* oevDiagGetRendererName(enum ovRenderer renderer);
-
 	// Get vendor name
 	_OEV_EXPORTFUNC const char* oevDiagGetVendorName(enum ovRenderer renderer);
-
 	// Check if has extension
 	_OEV_EXPORTFUNC int oevDiagHasExtension(enum ovRenderer renderer, const char* szFormat, ...);
-
 	// Rescan viewer information. Must be called before access oevDiagGetVersion
-	_OEV_EXPORTFUNC int oevScanRenderer(enum ovRenderer renderer, int debugMode);
-
+	_OEV_EXPORTFUNC int oevScanRenderer(enum ovRenderer renderer, int debugMode, void* platformWindow);
 	_OEV_EXPORTFUNC struct gvRenderingTestResult* oevRunRenderingTests(const char* szXml);
-
 	// Wad
 	_OEV_EXPORTFUNC int oevInitWad(const char* path);
-
 	// Cpuid
-	_OEV_EXPORTFUNC void oevReadCpuid(struct gvCpuid* pxSystemCaps);
-
-
+	_OEV_EXPORTFUNC void oevReadCpuid(struct gvCpuid* value);
+    _OEV_EXPORTFUNC int oevClientLoadDatabase(const char* OuterXml);
+    _OEV_EXPORTFUNC void oevDatabaseCreateFromByte(const void* bytes, size_t length);
+    _OEV_EXPORTFUNC void oevScanSystem(void);
+    _OEV_EXPORTFUNC int oevStartGpuTelemetry(void);
+    _OEV_EXPORTFUNC const char* oevGetGpuTelemetry(void);
+    _OEV_EXPORTFUNC void oevEndGpuTelemetry(void);
 #ifdef __cplusplus
 }
 #endif
