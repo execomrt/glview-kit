@@ -54,7 +54,7 @@ namespace RenderTest {
         OpenGL_4_4,    // OpenGL 4.4
         OpenGL_4_5,    // OpenGL 4.5
         OpenGL_4_6,    // OpenGL 4.6
-        Vulkan_1_0,    // Compatibility ID; Windows uses RenderCore (requires Vulkan 1.3)
+        Vulkan_1_0,    // Legacy Vulkan renderer
         Vulkan_1_1,    // Vulkan 1.1
         Vulkan_1_2,    // Vulkan 1.2
         Vulkan_1_3 = 17 // RenderCore Vulkan 1.3; 16 is reserved for Metal in the DLL ABI

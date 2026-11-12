@@ -9,8 +9,7 @@ RenderCore checkout, or network access is required to build this kit.
 - Windows 10 or later, Visual Studio 2022 with Desktop development with C++.
 - CMake 3.21 or later; the targets use C++20.
 - A matching x64 GLVIEW runtime: `infogl.dll`, `GLVIEW.RMX`, and its companion files.
-- A GPU/driver supporting the requested API. Windows Vulkan tests use the
-  RenderCore backend and require Vulkan 1.3, including the legacy Vulkan 1.0 ID.
+- A GPU/driver supporting the requested API. Vulkan 1.0–1.2 use the legacy renderer; Vulkan 1.3 uses RenderCore and requires Vulkan 1.3.
 
 This refresh uses GLVIEW SDK commit `c533cd1b52c4e4b8d7ab2703044b99945558b8c0`.
 Runtime binaries are supplied separately and are not committed here. Keep the DLL
@@ -68,12 +67,14 @@ Machine paths belong in user presets, not shared presets.
 ```powershell
 Push-Location build/vs2022-x64/Debug
 .\GLViewWin32Project.exe --opengl --no-pause
+.\GLViewWin32Project.exe --vulkan10 --no-pause
+.\GLViewWin32Project.exe --vulkan12 --no-pause
 .\GLViewWin32Project.exe --vulkan13 --no-pause
 Pop-Location
 ```
 
 The sample opens a 640x480 window for five seconds per test. With no API selection
-it runs OpenGL 3.2 then Vulkan 1.3. Interactive runs wait for Enter; `--no-pause`
+it runs OpenGL 3.2, legacy Vulkan 1.0, legacy Vulkan 1.2, then RenderCore Vulkan 1.3. Interactive runs wait for Enter; `--no-pause`
 writes `glviewkit.log` and `glviewkit-error.log` in the working directory and exits.
 Exit codes: 0 success, 1 initialization/test failure, 2 invalid arguments.
 PowerShell callers automating a GUI executable should use `Start-Process -Wait

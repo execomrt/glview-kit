@@ -333,9 +333,9 @@ namespace RenderTest {
 		case RendererType::OpenGL_4_4: return "4.4";
 		case RendererType::OpenGL_4_5: return "4.5";
 		case RendererType::OpenGL_4_6: return "4.6";
-		case RendererType::Vulkan_1_0:
-		case RendererType::Vulkan_1_1:
-		case RendererType::Vulkan_1_2: return "1.0";
+		case RendererType::Vulkan_1_0: return "1.0";
+		case RendererType::Vulkan_1_1: return "1.1";
+		case RendererType::Vulkan_1_2: return "1.2";
 		case RendererType::Vulkan_1_3: return "1.3";
 		default: return "4.6";
 		}
@@ -376,9 +376,9 @@ namespace RenderTest {
 			case RendererType::OpenGL_4_4: return "OpenGL 4.4";
 			case RendererType::OpenGL_4_5: return "OpenGL 4.5";
 			case RendererType::OpenGL_4_6: return "OpenGL 4.6";
-			case RendererType::Vulkan_1_0: return "Vulkan (RenderCore; legacy 1.0 request)";
-			case RendererType::Vulkan_1_1: return "Vulkan (RenderCore; legacy 1.1 request)";
-			case RendererType::Vulkan_1_2: return "Vulkan (RenderCore; legacy 1.2 request)";
+			case RendererType::Vulkan_1_0: return "Vulkan 1.0 (legacy)";
+			case RendererType::Vulkan_1_1: return "Vulkan 1.1 (legacy)";
+			case RendererType::Vulkan_1_2: return "Vulkan 1.2 (legacy)";
 			case RendererType::Vulkan_1_3: return "Vulkan 1.3 (RenderCore)";
 			default: return "Unknown";
 			}

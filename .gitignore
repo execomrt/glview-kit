@@ -5,3 +5,4 @@
 *.exe
 *.log
 /GLVIEW.RMX
+.clang-format
