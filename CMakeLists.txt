@@ -1,8 +1,13 @@
 cmake_minimum_required(VERSION 3.21)
 project(GLViewKit VERSION 7.4.4 LANGUAGES CXX)
 
+# Visual Studio solution folders: "GLView", "OpenGL Init" (ogl_init/), "Third-Party".
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 if(NOT WIN32)
-    message(FATAL_ERROR "GLViewKit currently supports Windows only")
+    # The infogl.dll wrapper is Windows-only; on other hosts only the ogl_init triangle test is built.
+    add_subdirectory(ogl_init)
+    return()
 endif()
 
 add_library(RenderingTester STATIC src/RenderingTester.cpp src/RenderingTester.h)
@@ -17,6 +22,7 @@ add_executable(GLViewWin32Project WIN32 src/Main.cpp)
 target_link_libraries(GLViewWin32Project PRIVATE GLViewKit::RenderingTester)
 set_target_properties(GLViewWin32Project PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:GLViewWin32Project>")
+set_target_properties(RenderingTester GLViewWin32Project PROPERTIES FOLDER "GLView")
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT GLViewWin32Project)
 
 set(GLVIEW_RUNTIME_DIR "" CACHE PATH "Directory containing a matching GLVIEW runtime")
@@ -45,3 +51,5 @@ else()
     message(STATUS "Runtime staging disabled; provide infogl.dll and GLVIEW.RMX before running")
 endif()
 
+
+add_subdirectory(ogl_init)
