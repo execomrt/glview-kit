@@ -277,7 +277,8 @@ int wglewDescribePixelFormat(wglewContext* context, HDC hDC)
 HGLRC wglewCreateContext(wglewContext* context, HDC hDC)
 {
     HGLRC ret = nullptr;
-     
+    bool pixelFormatSet = false; // SetPixelFormat may only be called once per window
+
     if (context->majorVersion >= 3)
     {
         if (!SetPixelFormat(hDC, context->pixelFormatIndex, &context->pixelFormatDescriptor))
@@ -286,6 +287,7 @@ HGLRC wglewCreateContext(wglewContext* context, HDC hDC)
             LogE("SetPixelFormat returned NULL");
             goto onError;
         }
+        pixelFormatSet = true;
         auto hGLRCTemp = wglCreateContext(hDC);
         if (hGLRCTemp == nullptr)
         {
@@ -361,9 +363,12 @@ HGLRC wglewCreateContext(wglewContext* context, HDC hDC)
         context->pixelFormatIndex = context->pixelFormatIndex;
     }
 
-    if (ret == nullptr)
+    // Legacy context only when a pre-3.0 context was requested. For 3.x+ a failed
+    // wglCreateContextAttribsARB must fail, not silently return a compatibility context.
+    if (ret == nullptr && context->majorVersion < 3)
     {
-        if (!SetPixelFormat(hDC, context->pixelFormatIndex, &context->pixelFormatDescriptor))
+        if (!pixelFormatSet &&
+            !SetPixelFormat(hDC, context->pixelFormatIndex, &context->pixelFormatDescriptor))
         // Are We Able To Set The Pixel Format?
         {
             LogE("SetPixelFormat returns NULL");
@@ -445,6 +450,23 @@ int wglewInitContext(wglewContext* context)
         }
         DestroyWindow(hWndTemp);
         return -3;
+    }
+    // Strict drivers (e.g. Mesa opengl32.dll) validate the descriptor: never pass a zeroed one.
+    {
+        PIXELFORMATDESCRIPTOR& pfd = context->pixelFormatDescriptor;
+        if (pfd.nSize != sizeof(PIXELFORMATDESCRIPTOR) || pfd.nVersion != 1 ||
+            !(pfd.dwFlags & PFD_DRAW_TO_WINDOW) || !(pfd.dwFlags & PFD_SUPPORT_OPENGL))
+        {
+            ZeroMemory(&pfd, sizeof(pfd));
+            pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+            pfd.nVersion = 1;
+            pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+            pfd.iPixelType = PFD_TYPE_RGBA;
+            pfd.cColorBits = 32;
+            pfd.cDepthBits = 24;
+            pfd.cStencilBits = 8;
+            pfd.iLayerType = PFD_MAIN_PLANE;
+        }
     }
     pfdTemp = ChoosePixelFormat(hDCTemp, &context->pixelFormatDescriptor);
     if (pfdTemp == 0)
